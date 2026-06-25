@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Business Suite LLM</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            transition: 0.3s ease;
+        }
+        h3 { margin-top: 0; }
+
+        /* Toolbar */
+        .toolbar {
+            height: 48px;
+            background: #ffffff;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        .toolbar-left, .toolbar-right { display: flex; gap: 8px; }
+        .toolbar-center { flex: 1; display: flex; justify-content: center; }
+        .tb-btn {
+            background: transparent;
+            border: none;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .tb-btn:hover { background: #f0f0f0; }
+        #globalSearch {
+            width: 60%;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #themeSelect { padding: 4px 8px; }
+
+        /* API Key Box */
+        .apikey-box {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            background: #fafafa;
+        }
+
+        /* Layout */
+        .container {
+            display: flex;
+            height: calc(100vh - 48px - 70px);
+        }
+        .left-panel, .center-panel, .right-panel {
+            padding: 15px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .left-panel { width: 30%; border-right: 1px solid #ddd; }
+        .center-panel { width: 40%; border-right: 1px solid #ddd; }
+        .right-panel { width: 30%; }
+
+        /* Chat */
+        #chatBox {
+            height: 70vh;
+            overflow-y: auto;
+            background: #fafafa;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .chat-input {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        #chatInput {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .chat-input button {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+
+        /* Notes */
+        #notesArea {
+            width: 100%;
+            height: 70vh;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .right-panel button {
+            margin-top: 10px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+
+        /* Data preview */
+        #dataPreview {
+            margin-top: 10px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            background: #fafafa;
+            min-height: 80px;
+        }
+
+        /* Themes */
+
+        /* Default */
+        .theme-default {
+            background: #ffffff;
+            color: #000;
+        }
+
+        /* Dark */
+        .theme-dark {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        .theme-dark .toolbar {
+            background: #222;
+            border-bottom-color: #444;
+        }
+        .theme-dark .tb-btn { color: #ffffff; }
+        .theme-dark .tb-btn:hover { background: #333; }
+        .theme-dark .left-panel,
+        .theme-dark .center-panel,
+        .theme-dark .right-panel {
+            background: #1f1f1f;
+            border-color: #333;
+        }
+        .theme-dark #chatBox,
+        .theme-dark #notesArea,
+        .theme-dark #dataPreview {
+            background: #222;
+            border-color: #444;
+            color: #ffffff;
+        }
+        .theme-dark input,
+        .theme-dark textarea,
+        .theme-dark select {
+            background: #222;
+            color: #ffffff;
+            border-color: #444;
+        }
+
+        /* Pastel */
+        .theme-pastel {
+            background-color: #FFF9FD;
+            color: #2A2A2A;
+        }
+
+        /* Floating dark-glass modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal {
+            width: 70%;
+            max-width: 900px;
+            max-height: 80vh;
+            background: rgba(10, 10, 15, 0.9);
+            color: #ffffff;
+            border: 1px solid #D8C6FF;
+            box-shadow: 0 0 25px rgba(216, 198, 255, 0.7);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            animation: modalFadeZoom 0.25s ease-out;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .modal-title {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .modal-content {
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        @keyframes modalFadeZoom {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body class="theme-default">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <button class="tb-btn" onclick="aiSummary()">⚡ Summary</button>
+            <button class="tb-btn" onclick="aiInsights()">📊 Insights</button>
+            <button class="tb-btn" onclick="aiSWOT()">🧠 SWOT</button>
+            <button class="tb-btn" onclick="aiBizPlan()">📝 Biz Plan</button>
+            <button class="tb-btn" onclick="aiPitch()">🎤 Pitch</button>
+            <button class="tb-btn" onclick="aiCompare()">🔍 Compare</button>
+            <button class="tb-btn" onclick="aiAnalyzeData()">📈 Analyze Data</button>
+        </div>
+
+        <div class="toolbar-center">
+            <input type="text" id="globalSearch" placeholder="Search..." oninput="globalSearch()">
+        </div>
+
+        <div class="toolbar-right">
+            <select id="themeSelect" onchange="changeTheme()">
+                <option value="theme-default">Default</option>
+                <option value="theme-dark">Dark</option>
+                <option value="theme-pastel">Pastel</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- API Key Input -->
+    <div class="apikey-box">
+        <label><b>Enter your Gemini API Key:</b></label><br>
+        <input type="password" id="userApiKey" placeholder="Paste your API key..." 
+               style="width:60%; padding:6px; margin-top:5px;">
+        <button onclick="saveUserKey()" style="padding:6px 10px;">Save Key</button>
+    </div>
+
+    <div class="container">
+
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <h3>Documents & Data</h3>
+
+            <p><b>Upload PDF:</b></p>
+            <input type="file" id="pdfUpload" accept="application/pdf" onchange="loadPDF()">
+            <p style="font-size: 12px; color: #777;">(PDF viewer placeholder)</p>
+
+            <br><br>
+
+            <p><b>Upload Data (CSV/XLSX):</b></p>
+            <input type="file" id="dataUpload" accept=".csv,.xlsx" onchange="loadData()">
+            <div id="dataPreview">No data loaded yet.</div>
+        </div>
+
+        <!-- Center Panel -->
+        <div class="center-panel">
+            <h3>AI Chat (Your AI Assistant)</h3>
+
+            <div id="chatBox"></div>
+
+            <div class="chat-input">
+                <input type="text" id="chatInput" placeholder="Ask something..." onkeydown="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <h3>Notes</h3>
+            <textarea id="notesArea" placeholder="Write your notes here..." oninput="saveNotes()"></textarea>
+            <button onclick="exportNotes()">Export Notes</button>
+        </div>
+
+    </div>
+
+    <!-- Floating Modal -->
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Your AI Assistant — Result</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modalContent" class="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        /* API KEY STORAGE */
+        function saveUserKey() {
+            const key = document.getElementById("userApiKey").value.trim();
+            if (!key) {
+                alert("Please paste a valid API key.");
+                return;
+            }
+            localStorage.setItem("gemini_api_key", key);
+            alert("API key saved successfully!");
+        }
+
+        function getUserKey() {
+            return localStorage.getItem("gemini_api_key") || "";
+        }
+
+        window.addEventListener("load", () => {
+            const saved = getUserKey();
+            if (saved) {
+                document.getElementById("userApiKey").value = saved;
+            }
+            document.getElementById("notesArea").value = localStorage.getItem("notes") || "";
+        });
+
+        /* THEME */
+        function changeTheme() {
+            const theme = document.getElementById("themeSelect").value;
+            document.body.className = theme;
+        }
+
+        /* NOTES */
+        function saveNotes() {
+            localStorage.setItem("notes", document.getElementById("notesArea").value);
+        }
+
+        /* MODAL */
+        function openModal(text) {
+            document.getElementById("modalContent").textContent = text;
+            document.getElementById("modalOverlay").style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById("modalOverlay").style.display = "none";
+        }
+
+        /* GEMINI CALL */
+        async function callGemini(promptText) {
+            const key = getUserKey();
+
+            if (!key) {
+                openModal("⚠️ No API key found.\n\nPlease paste your Gemini API key at the top and click Save.");
+                throw new Error("Missing API key");
+            }
+
+            const res = await fetch(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + key,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                }
+            );
+
+            const data = await res.json();
+            const reply =
+                data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+                "(No response from Gemini)";
+            return reply;
+        }
+
+        /* CHAT */
+        async function sendMessage() {
+            const input = document.getElementById("chatInput");
+            const chatBox = document.getElementById("chatBox");
+            const text = input.value.trim();
+            if (!text) return;
+
+            chatBox.innerHTML += `<div><b>You:</b> ${text}</div>`;
+            input.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const reply = await callGemini(text);
+                chatBox.innerHTML += `<div><b>Your AI Assistant:</b> ${reply}</div>`;
+            } catch (e) {
+                chatBox.innerHTML += `<div><b>Your AI Assistant:</b> Error talking to Gemini.</div>`;
+            }
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        /* FILES */
+        function loadPDF() {
+            const file = document.getElementById("pdfUpload").files[0];
+            if (!file) return;
+            alert("PDF loaded (viewer placeholder).");
+        }
+
+        function loadData() {
+            const file = document.getElementById("dataUpload").files[0];
+            if (!file) return;
+            document.getElementById("dataPreview").innerHTML =
+                "Data loaded: " + file.name + " (preview placeholder).";
+        }
+
+        /* BUSINESS BUTTONS */
+        async function runBusinessPrompt(prompt) {
+            openModal("Thinking...\n\nYour AI Assistant is generating a detailed result...");
+            try {
+                const reply = await callGemini(prompt);
+                document.getElementById("modalContent").textContent = reply;
+            } catch (e) {
+                document.getElementById("modalContent").textContent =
+                    "Error talking to Gemini.";
+            }
+        }
+
+        function aiSummary() {
+            const notes = document.getElementById("notesArea").value || "(no notes)";
+            const prompt =
+                "You are 'Your AI Assistant'. Create a detailed business summary.\n\nNotes:\n" +
+                notes +
+                "\n\nProvide key points, insights, and recommendations.";
+            runBusinessPrompt(prompt);
+        }
+
+        function aiInsights() {
+            const notes = document.getElementById("notesArea").value || "(no notes)";
+            const prompt =
+                "You are 'Your AI Assistant'. Analyze the user's notes.\n\nNotes:\n" +
+                notes +
+                "\n\nIdentify trends, risks, opportunities, and patterns.";
+            runBusinessPrompt(prompt);
+        }
+
+        function aiSWOT() {
+            const notes = document.getElementById("notesArea").value || "(no notes)";
+            const prompt =
+                "You are 'Your AI Assistant'. Create a detailed SWOT analysis.\n\nNotes:\n" +
+                notes +
+                "\n\nFormat with Strengths, Weaknesses, Opportunities, Threats.";
+            runBusinessPrompt(prompt);
+        }
+
+        function aiBizPlan() {
+            const notes = document.getElementById("notesArea").value || "(no notes)";
+            const prompt =
+                "You are 'Your AI Assistant'. Generate a business plan outline.\n\nNotes:\n" +
+                notes +
+                "\n\nInclude: Executive Summary, Problem, Solution, Market, Competition, Business Model, Next Steps.";
+            runBusinessPrompt(prompt);
+        }
+
+        function aiPitch() {
+            const notes = document.getElementById("notesArea").value || "(no notes)";
+            const prompt =
+                "You are 'Your AI Assistant'. Write a compelling pitch.\n\nNotes:\n" +
+                notes +
+                "\n\nKeep it confident, clear, and suitable for investors.";
+            runBusinessPrompt(prompt);
+        }
+
+        function aiCompare() {
+            const prompt =
+                "You are 'Your AI Assistant'. Create a reusable comparison template.\n\nInclude similarities, differences, strengths, weaknesses, key takeaways.";
+            runBusinessPrompt(prompt);
+        }
+
+        function aiAnalyzeData() {
+            const dataInfo =
+                document.getElementById("dataPreview").textContent ||
+                "No data description available.";
+            const prompt =
+                "You are 'Your AI Assistant'. Provide a framework for analyzing business data.\n\nData info:\n" +
+                dataInfo +
+                "\n\nExplain how to identify trends, anomalies, and insights.";
+            runBusinessPrompt(prompt);
+        }
+
+        function globalSearch() {
+            console.log("Searching:", document.getElementById("globalSearch").value);
+        }
+    </script>
+</body>
+</html>
